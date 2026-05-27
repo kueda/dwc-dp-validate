@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from dwcdp_validate.validator import validate
-from dwcdp_validate.report import Severity
+from dwc_dp_validate.validator import validate
+from dwc_dp_validate.report import Severity
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BIRD_TRACKING = FIXTURES / "dwc-dp-examples" / "observation" / "bird-tracking" / "output_data"

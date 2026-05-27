@@ -1,4 +1,4 @@
-"""Click entry point for dwcdp-validate."""
+"""Click entry point for dwc-dp-validate."""
 from __future__ import annotations
 
 import sys

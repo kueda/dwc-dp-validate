@@ -1,8 +1,8 @@
 """Tests for the profile conformance checks (Layer 2a)."""
 import pytest
 
-from dwcdp_validate.checks.profile import check, KNOWN_DWC_DP_PROFILES
-from dwcdp_validate.report import Report, Severity
+from dwc_dp_validate.checks.profile import check, KNOWN_DWC_DP_PROFILES
+from dwc_dp_validate.report import Report, Severity
 
 
 def _run(dp: dict) -> Report:

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from dwcdp_validate.checks.semantic import check, _parse_iso8601
-from dwcdp_validate.report import Report, Severity
+from dwc_dp_validate.checks.semantic import check, _parse_iso8601
+from dwc_dp_validate.report import Report, Severity
 
 
 def _run_on_rows(rows: list[dict], resource_name: str = "occurrence") -> Report:
@@ -59,7 +59,7 @@ class TestBasisOfRecord:
         assert not _errors(report)
 
     def test_all_valid_basis_values(self):
-        from dwcdp_validate.checks.semantic import BASIS_OF_RECORD_VALUES
+        from dwc_dp_validate.checks.semantic import BASIS_OF_RECORD_VALUES
         for val in BASIS_OF_RECORD_VALUES:
             report = _run_on_rows([{"basisOfRecord": val}])
             assert not _errors(report), f"Unexpected error for basisOfRecord={val!r}"

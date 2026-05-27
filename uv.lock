@@ -186,7 +186,7 @@ wheels = [
 ]
 
 [[package]]
-name = "dwcdp-validate"
+name = "dwc-dp-validate"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
