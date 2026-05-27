@@ -1,0 +1,20 @@
+{
+  "profile": "tabular-data-package",
+  "name": "invalid-missing-profile-example",
+  "resources": [
+    {
+      "name": "occurrence",
+      "path": "occurrence.csv",
+      "profile": "tabular-data-resource",
+      "mediatype": "text/csv",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {"name": "occurrenceID", "type": "string", "constraints": {"required": true, "unique": true}},
+          {"name": "scientificName", "type": "string"}
+        ],
+        "primaryKey": "occurrenceID"
+      }
+    }
+  ]
+}

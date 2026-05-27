@@ -1,0 +1,29 @@
+{
+  "profile": "https://raw.githubusercontent.com/gbif/dwc-dp/0.1/dwc-dp/dwc-dp-profile.json",
+  "name": "invalid-bad-values-example",
+  "id": "test-id",
+  "created": "2026-01-01",
+  "version": "1.0",
+  "resources": [
+    {
+      "name": "occurrence",
+      "path": "occurrence.csv",
+      "profile": "tabular-data-resource",
+      "mediatype": "text/csv",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {"name": "occurrenceID", "type": "string", "constraints": {"required": true, "unique": true}},
+          {"name": "basisOfRecord", "type": "string"},
+          {"name": "occurrenceStatus", "type": "string"},
+          {"name": "decimalLatitude", "type": "number"},
+          {"name": "decimalLongitude", "type": "number"},
+          {"name": "countryCode", "type": "string"},
+          {"name": "taxonRank", "type": "string"},
+          {"name": "eventDate", "type": "string"}
+        ],
+        "primaryKey": "occurrenceID"
+      }
+    }
+  ]
+}

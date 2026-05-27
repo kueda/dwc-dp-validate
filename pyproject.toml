@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dwcdp-validate"
+version = "0.1.0"
+description = "CLI validator for DarwinCore Data Packages (dwc-dp)"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8",
+    "frictionless[csv]>=5",
+    "requests",
+]
+
+[project.scripts]
+dwcdp-validate = "dwcdp_validate.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dwcdp_validate"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "responses>=0.25",
+]

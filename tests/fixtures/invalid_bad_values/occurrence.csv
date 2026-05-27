@@ -1,0 +1,4 @@
+occurrenceID,basisOfRecord,occurrenceStatus,decimalLatitude,decimalLongitude,countryCode,taxonRank,eventDate
+occ-bad-1,NotAValidBasisOfRecord,present,91.0,-122.0,US,species,2024-01-15
+occ-bad-2,HumanObservation,neither,-34.5,181.0,XX,domain,not-a-date
+occ-bad-3,HumanObservation,present,48.5,2.3,FR,species,2023-06-01
