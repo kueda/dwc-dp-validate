@@ -98,6 +98,9 @@ uv sync
 # Run tests
 uv run pytest tests/ -v
 
+# Run pylint
+uv run pylint src/ tests/
+
 # Run against the bundled example fixtures
 uv run dwcdp-validate tests/fixtures/dwc-dp-examples/observation/bird-tracking/output_data/ --no-fetch
 ```

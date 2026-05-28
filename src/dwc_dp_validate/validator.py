@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import tarfile
 import tempfile
 from pathlib import Path
@@ -79,6 +80,7 @@ def validate(
     path: Path,
     fetch: bool = True,
 ) -> Report:
+    """Validate a DwC-DP package at path and return a Report."""
     report = Report()
     tmp_dir: Optional[Path] = None
 
@@ -93,7 +95,7 @@ def validate(
 
         try:
             dp = json.loads(dp_path.read_text(encoding="utf-8"))
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught  # read_text or json.loads may raise various OS/decode errors
             report.add(Issue(
                 severity=Severity.ERROR,
                 message=f"Could not parse datapackage.json: {exc}",
@@ -105,7 +107,7 @@ def validate(
             fr_report = frictionless.validate(str(dp_path))
             for issue in _frictionless_errors_to_issues(fr_report):
                 report.add(issue)
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught  # frictionless raises undocumented internal exceptions
             report.add(Issue(
                 severity=Severity.ERROR,
                 message=f"Frictionless validation failed: {exc}",
@@ -125,7 +127,6 @@ def validate(
 
     finally:
         if tmp_dir is not None:
-            import shutil
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return report

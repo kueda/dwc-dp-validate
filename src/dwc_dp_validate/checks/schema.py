@@ -9,6 +9,7 @@ from typing import Optional
 import requests
 
 from ..report import Issue, Report, Severity
+from ._utils import get_delimiter
 
 SCHEMA_BASE_URL = (
     "https://raw.githubusercontent.com/gbif/dwc-dp/master/dwc-dp/table-schemas/"
@@ -28,7 +29,7 @@ def _fetch_schema(name: str) -> Optional[dict]:
             data = json.loads(bundled.read_text())
             _cache[name] = data
             return data
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught  # malformed bundled JSON falls through to network fetch
             pass
 
     try:
@@ -37,7 +38,7 @@ def _fetch_schema(name: str) -> Optional[dict]:
             data = resp.json()
             _cache[name] = data
             return data
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught  # network or JSON decode errors; schema stays uncached
         pass
 
     _cache[name] = None
@@ -61,14 +62,6 @@ def get_foreign_keys(name: str) -> Optional[list[dict]]:
     """Return the foreign key definitions for the named table, or None if unknown."""
     schema = _fetch_schema(name)
     return None if schema is None else schema.get("foreignKeys", [])
-
-
-def _get_delimiter(resource: dict) -> str:
-    fmt = resource.get("format", "csv").lower()
-    dialect = resource.get("dialect", {})
-    if isinstance(dialect, dict):
-        return dialect.get("delimiter", "\t" if fmt in ("tsv", "tab") else ",")
-    return "\t" if fmt in ("tsv", "tab") else ","
 
 
 def check(
@@ -117,7 +110,7 @@ def check(
         if not csv_path.exists():
             continue
 
-        delimiter = _get_delimiter(resource)
+        delimiter = get_delimiter(resource)
         try:
             with open(csv_path, newline="", encoding="utf-8-sig") as fh:
                 headers = set(next(csv.reader(fh, delimiter=delimiter), []))
@@ -128,5 +121,5 @@ def check(
                     field_name=field_name,
                     message=f"Required field '{field_name}' is missing from '{name}'.",
                 ))
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught  # csv.Error, OSError, or encoding errors; column check skipped
             pass

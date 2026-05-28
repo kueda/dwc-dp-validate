@@ -1,8 +1,7 @@
 """Tests for referential integrity checks (Layer 2c)."""
+# pylint: disable=missing-function-docstring,missing-class-docstring
 import csv
 from pathlib import Path
-
-import pytest
 
 from dwc_dp_validate.checks import schema as schema_check
 from dwc_dp_validate.checks import integrity as integrity_check

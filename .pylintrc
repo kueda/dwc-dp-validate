@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+disable=
+    R0914,
+    R0912,
+    R0903

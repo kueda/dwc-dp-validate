@@ -21,6 +21,7 @@ packages = ["src/dwc_dp_validate"]
 
 [dependency-groups]
 dev = [
+    "pylint>=4.0.5",
     "pytest>=8",
     "responses>=0.25",
 ]

@@ -1,24 +1,17 @@
 """Tests for DwC semantic row-level checks (Layer 3)."""
+# pylint: disable=missing-function-docstring,missing-class-docstring
 import csv
 import tempfile
 from pathlib import Path
 
 import pytest
-import responses as resp_lib
 
 from dwc_dp_validate.checks import schema as schema_check
-from dwc_dp_validate.checks.semantic import check, _parse_iso8601
+from dwc_dp_validate.checks.semantic import BASIS_OF_RECORD_VALUES, check, _parse_iso8601
 from dwc_dp_validate.report import Report, Severity
+from .helpers import MOCK_SURVEY_SCHEMA
 
 SCHEMA_BASE_URL = schema_check.SCHEMA_BASE_URL
-
-MOCK_SURVEY_SCHEMA = {
-    "fields": [
-        {"name": "surveyID", "constraints": {"required": True, "unique": True}},
-        {"name": "eventID", "constraints": {"required": True}},
-        {"name": "siteCount"},
-    ]
-}
 
 
 def _run_on_rows(rows: list[dict], resource_name: str = "occurrence") -> Report:
@@ -71,7 +64,6 @@ class TestBasisOfRecord:
         assert not _errors(report)
 
     def test_all_valid_basis_values(self):
-        from dwc_dp_validate.checks.semantic import BASIS_OF_RECORD_VALUES
         for val in BASIS_OF_RECORD_VALUES:
             report = _run_on_rows([{"basisOfRecord": val}])
             assert not _errors(report), f"Unexpected error for basisOfRecord={val!r}"
@@ -105,15 +97,21 @@ class TestCoordinates:
         assert not _errors(report)
 
     def test_lat_out_of_range_is_error(self):
-        report = _run_on_rows([{"decimalLatitude": "91.0", "decimalLongitude": "0.0", "geodeticDatum": "WGS84"}])
+        report = _run_on_rows([{
+            "decimalLatitude": "91.0", "decimalLongitude": "0.0", "geodeticDatum": "WGS84"
+        }])
         assert any("decimalLatitude" in e for e in _errors(report))
 
     def test_lat_negative_boundary_valid(self):
-        report = _run_on_rows([{"decimalLatitude": "-90.0", "decimalLongitude": "0.0", "geodeticDatum": "WGS84"}])
+        report = _run_on_rows([{
+            "decimalLatitude": "-90.0", "decimalLongitude": "0.0", "geodeticDatum": "WGS84"
+        }])
         assert not _errors(report)
 
     def test_lon_out_of_range_is_error(self):
-        report = _run_on_rows([{"decimalLatitude": "0.0", "decimalLongitude": "181.0", "geodeticDatum": "WGS84"}])
+        report = _run_on_rows([{
+            "decimalLatitude": "0.0", "decimalLongitude": "181.0", "geodeticDatum": "WGS84"
+        }])
         assert any("decimalLongitude" in e for e in _errors(report))
 
     def test_missing_datum_with_coords_is_warning(self):

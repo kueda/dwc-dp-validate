@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import csv
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from ..report import Issue, Report, Severity
 from . import schema as schema_check
+from ._utils import get_delimiter, iter_csv_resources
 
 # Darwin Core class names, per https://dwc.tdwg.org/terms/#dwc:basisOfRecord
 BASIS_OF_RECORD_VALUES = {
@@ -82,8 +84,6 @@ def _parse_iso8601(value: str) -> bool:
 
 
 def _parse_single_date(value: str) -> bool:
-    from datetime import datetime, date
-
     value = value.strip()
     # Year only
     if len(value) == 4 and value.isdigit():
@@ -119,43 +119,27 @@ def _parse_single_date(value: str) -> bool:
     return False
 
 
-def _open_csv(path: Path, delimiter: str = ","):
+def _open_csv(path: Path):
     return open(path, newline="", encoding="utf-8-sig")
-
-
-def _get_delimiter(resource: dict) -> str:
-    fmt = resource.get("format", "csv").lower()
-    dialect = resource.get("dialect", {})
-    if isinstance(dialect, dict):
-        return dialect.get("delimiter", "\t" if fmt in ("tsv", "tab") else ",")
-    return "\t" if fmt in ("tsv", "tab") else ","
 
 
 def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
     """Run semantic checks on all resource CSV/TSV files."""
-    for resource in dp.get("resources", []):
-        name = resource.get("name", "<unnamed>")
-        path_str = resource.get("path", "")
-        if not path_str:
-            continue
-        csv_path = base_dir / path_str
-        if not csv_path.exists():
-            continue
-
+    for resource, name, csv_path in iter_csv_resources(dp, base_dir):
         required_fields: frozenset[str] = frozenset()
         if fetch:
             req = schema_check.get_required_field_names(name)
             if req:
                 required_fields = frozenset(req)
 
-        delimiter = _get_delimiter(resource)
+        delimiter = get_delimiter(resource)
         try:
             with _open_csv(csv_path) as fh:
                 reader = csv.DictReader(fh, delimiter=delimiter)
                 checkable_required = required_fields & frozenset(reader.fieldnames or [])
                 for row_num, row in enumerate(reader, start=2):
                     _check_row(row, row_num, name, report, checkable_required)
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught  # csv.Error, OSError, or encoding errors all surfaced as an issue
             report.add(Issue(
                 severity=Severity.ERROR,
                 resource=name,
@@ -203,7 +187,7 @@ def _check_row(
     if lat_str:
         try:
             lat = float(lat_str)
-            if not (-90 <= lat <= 90):
+            if not -90 <= lat <= 90:
                 add(Severity.ERROR, "decimalLatitude",
                     f"decimalLatitude {lat} is outside [-90, 90].")
                 lat = None
@@ -214,7 +198,7 @@ def _check_row(
     if lon_str:
         try:
             lon = float(lon_str)
-            if not (-180 <= lon <= 180):
+            if not -180 <= lon <= 180:
                 add(Severity.ERROR, "decimalLongitude",
                     f"decimalLongitude {lon} is outside [-180, 180].")
                 lon = None

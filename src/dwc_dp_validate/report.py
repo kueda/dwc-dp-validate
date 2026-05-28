@@ -1,3 +1,4 @@
+"""Validation report types: Severity, Issue, and Report."""
 from __future__ import annotations
 
 import json
@@ -7,6 +8,8 @@ from typing import Optional
 
 
 class Severity(str, Enum):
+    """Validation issue severity level."""
+
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
@@ -17,6 +20,8 @@ _SEVERITY_ORDER = {Severity.INFO: 0, Severity.WARNING: 1, Severity.ERROR: 2}
 
 @dataclass
 class Issue:
+    """A single validation finding."""
+
     severity: Severity
     message: str
     resource: Optional[str] = None
@@ -26,20 +31,26 @@ class Issue:
 
 @dataclass
 class Report:
+    """Aggregates validation Issues across all check layers."""
+
     issues: list[Issue] = field(default_factory=list)
 
     @property
     def valid(self) -> bool:
+        """True when no ERROR-level issues are present."""
         return not any(i.severity == Severity.ERROR for i in self.issues)
 
     def add(self, issue: Issue) -> None:
+        """Append an issue to the report."""
         self.issues.append(issue)
 
     def filtered(self, min_level: str = "warning") -> list[Issue]:
+        """Return issues at or above min_level severity."""
         threshold = _SEVERITY_ORDER[Severity(min_level)]
         return [i for i in self.issues if _SEVERITY_ORDER[i.severity] >= threshold]
 
     def as_text(self, min_level: str = "warning") -> str:
+        """Format issues as a human-readable string."""
         shown = self.filtered(min_level)
         status = "VALID" if self.valid else "INVALID"
         if not shown:
@@ -58,6 +69,7 @@ class Report:
         return "\n".join(lines)
 
     def as_json(self, min_level: str = "warning") -> str:
+        """Format issues as a JSON string."""
         shown = self.filtered(min_level)
         return json.dumps(
             {

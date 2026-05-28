@@ -1,19 +1,13 @@
 """Tests for the schema conformance check (Layer 2b)."""
+# pylint: disable=missing-function-docstring,missing-class-docstring
 import responses as resp_lib
 
 from dwc_dp_validate.checks import schema as schema_check
 from dwc_dp_validate.report import Report, Severity
+from .helpers import MOCK_SURVEY_SCHEMA
 
 SCHEMA_BASE_URL = schema_check.SCHEMA_BASE_URL
 SURVEY_URL = f"{SCHEMA_BASE_URL}survey.json"
-
-MOCK_SURVEY_SCHEMA = {
-    "fields": [
-        {"name": "surveyID", "constraints": {"required": True, "unique": True}},
-        {"name": "eventID", "constraints": {"required": True}},
-        {"name": "siteCount"},
-    ]
-}
 
 
 def _make_survey_dp(csv_filename: str = "survey.csv") -> dict:

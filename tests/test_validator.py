@@ -1,9 +1,9 @@
 """Integration tests for the full validation pipeline."""
+# pylint: disable=missing-function-docstring,missing-class-docstring
+import json
 import tarfile
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from dwc_dp_validate.validator import validate
 from dwc_dp_validate.report import Severity
@@ -25,7 +25,7 @@ class TestBirdTrackingFixture:
             and i.field_name != "occurrenceStatus"
         ]
         assert not errors, (
-            f"Unexpected errors in bird-tracking fixture:\n"
+            "Unexpected errors in bird-tracking fixture:\n"
             + "\n".join(i.message for i in errors)
         )
 
@@ -98,8 +98,6 @@ class TestPathResolution:
         assert report is not None
 
     def test_nonexistent_path_returns_error(self):
-        from pathlib import Path
-        import pytest
         report = validate(Path("/nonexistent/path"), fetch=False)
         errors = [i for i in report.issues if i.severity == Severity.ERROR]
         assert errors
@@ -143,7 +141,6 @@ class TestReportFormatting:
         assert "INVALID" in text
 
     def test_as_json_is_valid_json(self):
-        import json
         report = validate(INVALID_MISSING_PROFILE, fetch=False)
         parsed = json.loads(report.as_json())
         assert "valid" in parsed

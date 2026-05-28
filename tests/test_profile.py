@@ -1,6 +1,5 @@
 """Tests for the profile conformance checks (Layer 2a)."""
-import pytest
-
+# pylint: disable=missing-function-docstring,missing-class-docstring
 from dwc_dp_validate.checks.profile import check, KNOWN_DWC_DP_PROFILES
 from dwc_dp_validate.report import Report, Severity
 

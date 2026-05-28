@@ -6,14 +6,7 @@ from pathlib import Path
 
 from ..report import Issue, Report, Severity
 from . import schema as schema_check
-
-
-def _get_delimiter(resource: dict) -> str:
-    fmt = resource.get("format", "csv").lower()
-    dialect = resource.get("dialect", {})
-    if isinstance(dialect, dict):
-        return dialect.get("delimiter", "\t" if fmt in ("tsv", "tab") else ",")
-    return "\t" if fmt in ("tsv", "tab") else ","
+from ._utils import get_delimiter, iter_csv_resources
 
 
 def _load_column_values(csv_path: Path, field_name: str, delimiter: str) -> set[str]:
@@ -24,7 +17,7 @@ def _load_column_values(csv_path: Path, field_name: str, delimiter: str) -> set[
                 val = row.get(field_name, "").strip()
                 if val:
                     values.add(val)
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught  # best-effort load; missing or malformed files are silently skipped
         pass
     return values
 
@@ -37,20 +30,12 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
     resources_by_name = {r.get("name", ""): r for r in dp.get("resources", [])}
     key_cache: dict[tuple[str, str], set[str]] = {}
 
-    for resource in dp.get("resources", []):
-        name = resource.get("name", "")
-        path_str = resource.get("path", "")
-        if not path_str:
-            continue
-        csv_path = base_dir / path_str
-        if not csv_path.exists():
-            continue
-
+    for resource, name, csv_path in iter_csv_resources(dp, base_dir):
         fk_defs = schema_check.get_foreign_keys(name)
         if not fk_defs:
             continue
 
-        delimiter = _get_delimiter(resource)
+        delimiter = get_delimiter(resource)
 
         for fk in fk_defs:
             local_field = fk.get("fields", "")
@@ -74,7 +59,7 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
 
             cache_key = (ref_resource_name, ref_field)
             if cache_key not in key_cache:
-                ref_delimiter = _get_delimiter(ref_resource)
+                ref_delimiter = get_delimiter(ref_resource)
                 key_cache[cache_key] = _load_column_values(
                     ref_csv_path, ref_field, ref_delimiter
                 )
@@ -96,7 +81,7 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
                                     f"reference a row in '{ref_resource_name}'."
                                 ),
                             ))
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-exception-caught  # csv/OS/encoding errors surfaced as an issue
                 report.add(Issue(
                     severity=Severity.ERROR,
                     resource=name,
