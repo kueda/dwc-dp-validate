@@ -71,7 +71,15 @@ Delegates to `frictionless.validate()` for free structural checks:
 For each resource, field names in the local schema are compared against the
 official table schema fetched from the
 [gbif/dwc-dp](https://github.com/gbif/dwc-dp) repository. Unknown fields
-produce a warning. Skipped with `--no-fetch`.
+produce a warning. Required columns missing from the CSV header are an error.
+Skipped with `--no-fetch`.
+
+### Layer 2c — Referential integrity
+
+For each resource, foreign key definitions from the official DwC-DP table
+schemas are fetched and validated across files. Every value in a foreign key
+column must match a value in the referenced table's primary key column (error).
+Empty foreign key values are permitted. Skipped with `--no-fetch`.
 
 ### Layer 3 — DwC semantic checks
 
@@ -80,7 +88,7 @@ Row-level checks across all CSV/TSV files:
 | Field | Severity | Rule |
 |---|---|---|
 | `basisOfRecord` | error | must be in the DwC controlled vocabulary |
-| `occurrenceStatus` | error | must be `present` or `absent` |
+| `occurrenceStatus` | error | must be `detected` or `notDetected` |
 | `decimalLatitude` | error | must be in [-90, 90] |
 | `decimalLongitude` | error | must be in [-180, 180] |
 | `geodeticDatum` | warning | should be present when lat/lon are given |
