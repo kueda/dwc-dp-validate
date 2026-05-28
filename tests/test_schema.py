@@ -77,7 +77,7 @@ class TestRequiredColumnPresence:
         assert "eventID" in error_fields
 
     def test_no_base_dir_skips_column_check(self, monkeypatch):
-        monkeypatch.setattr(schema_check, "_cache", {"survey": MOCK_SURVEY_SCHEMA["fields"]})
+        monkeypatch.setattr(schema_check, "_cache", {"survey": MOCK_SURVEY_SCHEMA})
 
         report = Report()
         schema_check.check(_make_survey_dp(), report, fetch=True, base_dir=None)

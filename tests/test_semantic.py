@@ -253,7 +253,7 @@ class TestRequiredFieldValues:
             }]
         }
         monkeypatch.setattr(schema_check, "_cache", {
-            "survey": MOCK_SURVEY_SCHEMA["fields"],
+            "survey": MOCK_SURVEY_SCHEMA,
         })
         report = Report()
         check(dp, tmp_path, report, fetch=True)

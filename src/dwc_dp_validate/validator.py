@@ -9,6 +9,7 @@ from typing import Optional
 
 import frictionless
 
+from .checks import integrity as integrity_check
 from .checks import profile as profile_check
 from .checks import schema as schema_check
 from .checks import semantic as semantic_check
@@ -115,6 +116,9 @@ def validate(
 
         # Layer 2b: Field conformance against official schemas
         schema_check.check(dp, report, fetch=fetch, base_dir=base_dir)
+
+        # Layer 2c: Referential integrity checks
+        integrity_check.check(dp, base_dir, report, fetch=fetch)
 
         # Layer 3: DwC semantic checks
         semantic_check.check(dp, base_dir, report, fetch=fetch)

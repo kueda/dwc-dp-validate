@@ -15,10 +15,10 @@ SCHEMA_BASE_URL = (
 )
 BUNDLED_SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
 
-_cache: dict[str, Optional[list[dict]]] = {}
+_cache: dict[str, Optional[dict]] = {}
 
 
-def _fetch_fields(name: str) -> Optional[list[dict]]:
+def _fetch_schema(name: str) -> Optional[dict]:
     if name in _cache:
         return _cache[name]
 
@@ -26,9 +26,8 @@ def _fetch_fields(name: str) -> Optional[list[dict]]:
     if bundled.exists():
         try:
             data = json.loads(bundled.read_text())
-            result = data.get("fields", [])
-            _cache[name] = result
-            return result
+            _cache[name] = data
+            return data
         except Exception:
             pass
 
@@ -36,14 +35,18 @@ def _fetch_fields(name: str) -> Optional[list[dict]]:
         resp = requests.get(f"{SCHEMA_BASE_URL}{name}.json", timeout=10)
         if resp.status_code == 200:
             data = resp.json()
-            result = data.get("fields", [])
-            _cache[name] = result
-            return result
+            _cache[name] = data
+            return data
     except Exception:
         pass
 
     _cache[name] = None
     return None
+
+
+def _fetch_fields(name: str) -> Optional[list[dict]]:
+    schema = _fetch_schema(name)
+    return None if schema is None else schema.get("fields", [])
 
 
 def get_required_field_names(name: str) -> Optional[set[str]]:
@@ -52,6 +55,12 @@ def get_required_field_names(name: str) -> Optional[set[str]]:
     if fields is None:
         return None
     return {f["name"] for f in fields if f.get("constraints", {}).get("required")}
+
+
+def get_foreign_keys(name: str) -> Optional[list[dict]]:
+    """Return the foreign key definitions for the named table, or None if unknown."""
+    schema = _fetch_schema(name)
+    return None if schema is None else schema.get("foreignKeys", [])
 
 
 def _get_delimiter(resource: dict) -> str:
