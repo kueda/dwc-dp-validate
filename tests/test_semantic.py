@@ -4,9 +4,21 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import responses as resp_lib
 
+from dwc_dp_validate.checks import schema as schema_check
 from dwc_dp_validate.checks.semantic import check, _parse_iso8601
 from dwc_dp_validate.report import Report, Severity
+
+SCHEMA_BASE_URL = schema_check.SCHEMA_BASE_URL
+
+MOCK_SURVEY_SCHEMA = {
+    "fields": [
+        {"name": "surveyID", "constraints": {"required": True, "unique": True}},
+        {"name": "eventID", "constraints": {"required": True}},
+        {"name": "siteCount"},
+    ]
+}
 
 
 def _run_on_rows(rows: list[dict], resource_name: str = "occurrence") -> Report:
@@ -33,7 +45,7 @@ def _run_on_rows(rows: list[dict], resource_name: str = "occurrence") -> Report:
             ]
         }
         report = Report()
-        check(dp, tmp_path, report)
+        check(dp, tmp_path, report, fetch=False)
     return report
 
 
@@ -66,16 +78,16 @@ class TestBasisOfRecord:
 
 
 class TestOccurrenceStatus:
-    def test_present_is_valid(self):
-        report = _run_on_rows([{"occurrenceStatus": "present"}])
+    def test_detected_is_valid(self):
+        report = _run_on_rows([{"occurrenceStatus": "detected"}])
         assert not _errors(report)
 
-    def test_absent_is_valid(self):
-        report = _run_on_rows([{"occurrenceStatus": "absent"}])
+    def test_not_detected_is_valid(self):
+        report = _run_on_rows([{"occurrenceStatus": "notDetected"}])
         assert not _errors(report)
 
     def test_invalid_status_is_error(self):
-        report = _run_on_rows([{"occurrenceStatus": "detected"}])
+        report = _run_on_rows([{"occurrenceStatus": "present"}])
         assert any("occurrenceStatus" in e for e in _errors(report))
 
     def test_empty_status_no_error(self):
@@ -174,6 +186,20 @@ class TestTaxonRank:
         report = _run_on_rows([{"taxonRank": ""}])
         assert not _warnings(report)
 
+    def test_warning_cites_gbif_url(self):
+        report = _run_on_rows([{"taxonRank": "magnorder"}])
+        assert any("rs.gbif.org/vocabulary/gbif/rank" in w for w in _warnings(report))
+
+    def test_subkingdom_is_valid(self):
+        # was missing from the old hand-crafted list
+        report = _run_on_rows([{"taxonRank": "subkingdom"}])
+        assert not _warnings(report)
+
+    def test_nothogenus_is_warning(self):
+        # was in the old list but is not a GBIF rank
+        report = _run_on_rows([{"taxonRank": "nothogenus"}])
+        assert any("taxonRank" in w for w in _warnings(report))
+
 
 class TestEventDate:
     @pytest.mark.parametrize("date_str", [
@@ -207,4 +233,61 @@ class TestEventDate:
 
     def test_empty_no_error(self):
         report = _run_on_rows([{"eventDate": ""}])
+        assert not _errors(report)
+
+
+class TestRequiredFieldValues:
+    def _run_survey_rows(self, rows: list[dict], tmp_path: Path, monkeypatch) -> Report:
+        fieldnames = list(rows[0].keys())
+        csv_path = tmp_path / "survey.csv"
+        with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        dp = {
+            "resources": [{
+                "name": "survey",
+                "path": "survey.csv",
+                "format": "csv",
+                "schema": {"fields": [{"name": f} for f in fieldnames]},
+            }]
+        }
+        monkeypatch.setattr(schema_check, "_cache", {
+            "survey": MOCK_SURVEY_SCHEMA["fields"],
+        })
+        report = Report()
+        check(dp, tmp_path, report, fetch=True)
+        return report
+
+    def test_empty_required_field_is_error(self, tmp_path, monkeypatch):
+        report = self._run_survey_rows(
+            [{"surveyID": "", "eventID": "E1"}], tmp_path, monkeypatch
+        )
+        assert any("surveyID" in e for e in _errors(report))
+
+    def test_nonempty_required_field_no_error(self, tmp_path, monkeypatch):
+        report = self._run_survey_rows(
+            [{"surveyID": "S1", "eventID": "E1"}], tmp_path, monkeypatch
+        )
+        assert not _errors(report)
+
+    def test_whitespace_only_required_field_is_error(self, tmp_path, monkeypatch):
+        report = self._run_survey_rows(
+            [{"surveyID": "   ", "eventID": "E1"}], tmp_path, monkeypatch
+        )
+        assert any("surveyID" in e for e in _errors(report))
+
+    def test_fetch_false_skips_required_check(self, tmp_path):
+        csv_path = tmp_path / "survey.csv"
+        csv_path.write_text("surveyID,eventID\n,E1\n")
+        dp = {
+            "resources": [{
+                "name": "survey",
+                "path": "survey.csv",
+                "format": "csv",
+                "schema": {"fields": []},
+            }]
+        }
+        report = Report()
+        check(dp, tmp_path, report, fetch=False)
         assert not _errors(report)

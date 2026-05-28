@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Optional
 
 from ..report import Issue, Report, Severity
+from . import schema as schema_check
 
+# Darwin Core class names, per https://dwc.tdwg.org/terms/#dwc:basisOfRecord
 BASIS_OF_RECORD_VALUES = {
     "PreservedSpecimen",
     "FossilSpecimen",
@@ -21,31 +23,19 @@ BASIS_OF_RECORD_VALUES = {
     "MaterialEntity",
 }
 
-OCCURRENCE_STATUS_VALUES = {"present", "absent"}
+# Default vocabulary per https://gbif.github.io/dwc-dp/qrg/#Occurrence__occurrenceStatus;
+# implementers may extend this list.
+OCCURRENCE_STATUS_VALUES = {"detected", "notDetected"}
 
+# From https://rs.gbif.org/vocabulary/gbif/rank.xml
 TAXON_RANK_VALUES = {
-    "domain",
-    "kingdom",
-    "phylum",
-    "class",
-    "order",
-    "family",
-    "superfamily",
-    "tribe",
-    "genus",
-    "subgenus",
-    "section",
-    "species",
-    "subspecies",
-    "variety",
-    "form",
-    "cultivar",
-    "strain",
-    "nothogenus",
-    "nothospecies",
-    "nothosubspecies",
-    "infraspecificname",
-    "infragenericname",
+    "domain", "kingdom", "subkingdom", "superphylum", "phylum", "subphylum",
+    "superclass", "class", "subclass", "supercohort", "cohort", "subcohort",
+    "superorder", "order", "suborder", "infraorder", "superfamily", "family",
+    "subfamily", "tribe", "subtribe", "genus", "subgenus", "section",
+    "subsection", "series", "subseries", "speciesaggregate", "species",
+    "subspecificaggregate", "subspecies", "variety", "subvariety", "form",
+    "subform", "cultivargroup", "cultivar", "strain",
 }
 
 # ISO 3166-1 alpha-2 codes (comprehensive set)
@@ -141,7 +131,7 @@ def _get_delimiter(resource: dict) -> str:
     return "\t" if fmt in ("tsv", "tab") else ","
 
 
-def check(dp: dict, base_dir: Path, report: Report) -> None:
+def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
     """Run semantic checks on all resource CSV/TSV files."""
     for resource in dp.get("resources", []):
         name = resource.get("name", "<unnamed>")
@@ -152,12 +142,19 @@ def check(dp: dict, base_dir: Path, report: Report) -> None:
         if not csv_path.exists():
             continue
 
+        required_fields: frozenset[str] = frozenset()
+        if fetch:
+            req = schema_check.get_required_field_names(name)
+            if req:
+                required_fields = frozenset(req)
+
         delimiter = _get_delimiter(resource)
         try:
             with _open_csv(csv_path) as fh:
                 reader = csv.DictReader(fh, delimiter=delimiter)
+                checkable_required = required_fields & frozenset(reader.fieldnames or [])
                 for row_num, row in enumerate(reader, start=2):
-                    _check_row(row, row_num, name, report)
+                    _check_row(row, row_num, name, report, checkable_required)
         except Exception as exc:
             report.add(Issue(
                 severity=Severity.ERROR,
@@ -166,7 +163,13 @@ def check(dp: dict, base_dir: Path, report: Report) -> None:
             ))
 
 
-def _check_row(row: dict, row_num: int, resource: str, report: Report) -> None:
+def _check_row(
+    row: dict,
+    row_num: int,
+    resource: str,
+    report: Report,
+    required_fields: frozenset[str] = frozenset(),
+) -> None:
     def add(severity: Severity, field: str, msg: str) -> None:
         report.add(Issue(
             severity=severity,
@@ -176,6 +179,11 @@ def _check_row(row: dict, row_num: int, resource: str, report: Report) -> None:
             field_name=field,
         ))
 
+    for field_name in sorted(required_fields):
+        if not row.get(field_name, "").strip():
+            add(Severity.ERROR, field_name,
+                f"Required field '{field_name}' must not be empty.")
+
     bor = row.get("basisOfRecord", "").strip()
     if bor and bor not in BASIS_OF_RECORD_VALUES:
         add(Severity.ERROR, "basisOfRecord",
@@ -184,7 +192,7 @@ def _check_row(row: dict, row_num: int, resource: str, report: Report) -> None:
     status = row.get("occurrenceStatus", "").strip()
     if status and status not in OCCURRENCE_STATUS_VALUES:
         add(Severity.ERROR, "occurrenceStatus",
-            f"occurrenceStatus {status!r} must be 'present' or 'absent'.")
+            f"occurrenceStatus {status!r} must be 'detected' or 'notDetected'.")
 
     lat_str = row.get("decimalLatitude", "").strip()
     lon_str = row.get("decimalLongitude", "").strip()
@@ -237,7 +245,8 @@ def _check_row(row: dict, row_num: int, resource: str, report: Report) -> None:
     rank = row.get("taxonRank", "").strip()
     if rank and rank.lower() not in TAXON_RANK_VALUES:
         add(Severity.WARNING, "taxonRank",
-            f"taxonRank {rank!r} is not in the DwC controlled vocabulary.")
+            f"taxonRank {rank!r} is not among the GBIF ranks listed at "
+            "https://rs.gbif.org/vocabulary/gbif/rank.xml.")
 
     event_date = row.get("eventDate", "").strip()
     if event_date and not _parse_iso8601(event_date):

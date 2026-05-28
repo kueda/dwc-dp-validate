@@ -114,10 +114,10 @@ def validate(
         profile_check.check(dp, report)
 
         # Layer 2b: Field conformance against official schemas
-        schema_check.check(dp, report, fetch=fetch)
+        schema_check.check(dp, report, fetch=fetch, base_dir=base_dir)
 
         # Layer 3: DwC semantic checks
-        semantic_check.check(dp, base_dir, report)
+        semantic_check.check(dp, base_dir, report, fetch=fetch)
 
     finally:
         if tmp_dir is not None:

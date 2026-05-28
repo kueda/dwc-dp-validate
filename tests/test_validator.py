@@ -17,20 +17,16 @@ INVALID_BAD_VALUES = FIXTURES / "invalid_bad_values"
 class TestBirdTrackingFixture:
     def test_no_frictionless_errors(self):
         report = validate(BIRD_TRACKING, fetch=False)
-        frictionless_errors = [
+        # bird-tracking predates DwC-DP and uses old occurrenceStatus vocabulary
+        # (present/absent instead of detected/notDetected); exclude those known issues
+        errors = [
             i for i in report.issues
             if i.severity == Severity.ERROR
-            and "frictionless" not in i.message.lower()
-            and i.resource in ("event", "occurrence", "occurrence-assertion", None)
+            and i.field_name != "occurrenceStatus"
         ]
-        # The bird-tracking package should have no structural errors
-        structural_errors = [
-            i for i in report.issues
-            if i.severity == Severity.ERROR
-        ]
-        assert not structural_errors, (
+        assert not errors, (
             f"Unexpected errors in bird-tracking fixture:\n"
-            + "\n".join(i.message for i in structural_errors)
+            + "\n".join(i.message for i in errors)
         )
 
     def test_returns_report(self):
@@ -125,7 +121,10 @@ class TestGzipArchive:
             archive = Path(tmp) / "package.tar.gz"
             self._make_archive(BIRD_TRACKING, archive)
             report = validate(archive, fetch=False)
-            assert not any(i.severity == Severity.ERROR for i in report.issues)
+            # exclude known occurrenceStatus vocabulary mismatch in bird-tracking fixture
+            errors = [i for i in report.issues
+                      if i.severity == Severity.ERROR and i.field_name != "occurrenceStatus"]
+            assert not errors
 
     def test_invalid_package_in_gz_archive(self):
         with tempfile.TemporaryDirectory() as tmp:

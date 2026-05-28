@@ -10,6 +10,7 @@ Requires Python 3.11+ and [uv](https://github.com/astral-sh/uv).
 
 ```bash
 uv sync
+uv tool install .
 ```
 
 ## Usage

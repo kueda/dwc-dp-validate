@@ -1,6 +1,7 @@
 """Layer 2: Field conformance against official DwC-DP table schemas."""
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import Optional
@@ -14,10 +15,10 @@ SCHEMA_BASE_URL = (
 )
 BUNDLED_SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
 
-_cache: dict[str, Optional[set[str]]] = {}
+_cache: dict[str, Optional[list[dict]]] = {}
 
 
-def _fetch_official_field_names(name: str) -> Optional[set[str]]:
+def _fetch_fields(name: str) -> Optional[list[dict]]:
     if name in _cache:
         return _cache[name]
 
@@ -25,7 +26,7 @@ def _fetch_official_field_names(name: str) -> Optional[set[str]]:
     if bundled.exists():
         try:
             data = json.loads(bundled.read_text())
-            result = {f["name"] for f in data.get("fields", [])}
+            result = data.get("fields", [])
             _cache[name] = result
             return result
         except Exception:
@@ -35,7 +36,7 @@ def _fetch_official_field_names(name: str) -> Optional[set[str]]:
         resp = requests.get(f"{SCHEMA_BASE_URL}{name}.json", timeout=10)
         if resp.status_code == 200:
             data = resp.json()
-            result = {f["name"] for f in data.get("fields", [])}
+            result = data.get("fields", [])
             _cache[name] = result
             return result
     except Exception:
@@ -45,8 +46,29 @@ def _fetch_official_field_names(name: str) -> Optional[set[str]]:
     return None
 
 
-def check(dp: dict, report: Report, fetch: bool = True) -> None:
-    """Warn when local field names are not present in the official schema."""
+def get_required_field_names(name: str) -> Optional[set[str]]:
+    """Return the set of required field names for the named table, or None if unknown."""
+    fields = _fetch_fields(name)
+    if fields is None:
+        return None
+    return {f["name"] for f in fields if f.get("constraints", {}).get("required")}
+
+
+def _get_delimiter(resource: dict) -> str:
+    fmt = resource.get("format", "csv").lower()
+    dialect = resource.get("dialect", {})
+    if isinstance(dialect, dict):
+        return dialect.get("delimiter", "\t" if fmt in ("tsv", "tab") else ",")
+    return "\t" if fmt in ("tsv", "tab") else ","
+
+
+def check(
+    dp: dict,
+    report: Report,
+    fetch: bool = True,
+    base_dir: Optional[Path] = None,
+) -> None:
+    """Warn on unknown fields; error on missing required columns."""
     if not fetch:
         return
 
@@ -55,15 +77,15 @@ def check(dp: dict, report: Report, fetch: bool = True) -> None:
         schema = resource.get("schema", {})
         if isinstance(schema, str):
             continue
-        local_fields = {f["name"] for f in schema.get("fields", []) if "name" in f}
-        if not local_fields:
+
+        fields = _fetch_fields(name)
+        if fields is None:
             continue
 
-        official = _fetch_official_field_names(name)
-        if official is None:
-            continue
+        official_names = {f["name"] for f in fields}
+        local_declared = {f["name"] for f in schema.get("fields", []) if "name" in f}
 
-        for field_name in sorted(local_fields - official):
+        for field_name in sorted(local_declared - official_names):
             report.add(Issue(
                 severity=Severity.WARNING,
                 resource=name,
@@ -73,3 +95,29 @@ def check(dp: dict, report: Report, fetch: bool = True) -> None:
                     f"for '{name}'."
                 ),
             ))
+
+        if base_dir is None:
+            continue
+
+        required = {f["name"] for f in fields if f.get("constraints", {}).get("required")}
+        path_str = resource.get("path", "")
+        if not required or not path_str:
+            continue
+
+        csv_path = base_dir / path_str
+        if not csv_path.exists():
+            continue
+
+        delimiter = _get_delimiter(resource)
+        try:
+            with open(csv_path, newline="", encoding="utf-8-sig") as fh:
+                headers = set(next(csv.reader(fh, delimiter=delimiter), []))
+            for field_name in sorted(required - headers):
+                report.add(Issue(
+                    severity=Severity.ERROR,
+                    resource=name,
+                    field_name=field_name,
+                    message=f"Required field '{field_name}' is missing from '{name}'.",
+                ))
+        except Exception:
+            pass
