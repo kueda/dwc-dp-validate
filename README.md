@@ -1,5 +1,5 @@
 # !! Warning !!
-I'm not affiliated with TDWG and this was largely built by Claude based on existing documentation, so take this with a grain of salt. I don't really know if this validates DwC-DP files correctly.
+I'm not affiliated with TDWG and this was largely built by Claude based on existing documentation, so take this with a grain of salt. I don't really know if this validates DwC-DP files correctly. Please file issues if it doesn't!
 
 # dwc-dp-validate
 
@@ -19,17 +19,20 @@ uv tool install .
 ## Usage
 
 ```
-dwc-dp-validate PATH [OPTIONS]
+dwc-dp-validate [OPTIONS] PATH
 
-Arguments:
-  PATH    Path to a datapackage.json file, a directory containing one,
-          or a gzip archive (.gz) as specified by the DwC-DP standard.
+  Validate a DarwinCore Data Package.
+
+  PATH may be a datapackage.json file, a directory containing one, or a gzip
+  archive (.gz) as specified by the DwC-DP standard.
 
 Options:
-  --format [text|json]          Output format (default: text)
-  --level [error|warning|info]  Minimum severity to show (default: warning)
-  --no-fetch                    Skip remote schema fetching (offline mode)
-  --help
+  --format [text|json]          Output format.  [default: text]
+  --level [error|warning|info]  Minimum severity to show.  [default: warning]
+  --no-fetch                    Skip remote schema fetching (offline mode).
+  --detail                      Show every row-level issue instead of a
+                                grouped summary.
+  --help                        Show this message and exit.
 ```
 
 **Exit codes:** `0` = valid, `1` = validation errors found, `2` = tool/usage error.
