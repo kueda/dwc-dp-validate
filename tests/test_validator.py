@@ -5,7 +5,10 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+import responses as resp_lib
+
 from dwc_dp_validate.validator import validate
+from dwc_dp_validate.checks import schema as schema_check
 from dwc_dp_validate.report import Issue, Report, Severity
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -16,6 +19,7 @@ CONABIO_BEES = (
 INVALID_MISSING_PROFILE = FIXTURES / "invalid_missing_profile"
 INVALID_BAD_VALUES = FIXTURES / "invalid_bad_values"
 OVERLAP_VIOLATIONS = FIXTURES / "overlap_violations"
+UNDECLARED_REQUIRED = FIXTURES / "undeclared_required"
 
 
 class TestBirdTrackingFixture:
@@ -223,3 +227,31 @@ class TestOverlapViolations:
         report = validate(OVERLAP_VIOLATIONS, fetch=False)
         errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
         assert any("foreign" in m.lower() for m in errors)
+
+
+class TestUndeclaredRequired:
+    # The datapackage.json does not declare occurrenceID as required, so
+    # frictionless has no basis to complain about the empty value in row 2.
+    # Our Layer 3 semantic check catches it by consulting the official schema.
+
+    def test_frictionless_does_not_catch_undeclared_required(self):
+        # fetch=False: only frictionless Layer 1 runs — no complaint about empty occurrenceID
+        report = validate(UNDECLARED_REQUIRED, fetch=False)
+        errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
+        assert not any("occurrenceID" in m for m in errors)
+
+    @resp_lib.activate
+    def test_our_check_catches_undeclared_required(self, monkeypatch):
+        monkeypatch.setattr(schema_check, "_cache", {})
+        mock_schema = {
+            "fields": [
+                {"name": "occurrenceID", "constraints": {"required": True, "unique": True}},
+                {"name": "basisOfRecord"},
+            ]
+        }
+        resp_lib.add(resp_lib.GET, f"{schema_check.SCHEMA_BASE_URL}occurrence.json",
+                     json=mock_schema, status=200)
+
+        report = validate(UNDECLARED_REQUIRED, fetch=True)
+        errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
+        assert any("occurrenceID" in m for m in errors)
