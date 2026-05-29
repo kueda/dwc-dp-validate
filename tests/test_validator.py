@@ -10,6 +10,7 @@ from dwc_dp_validate.report import Severity
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BIRD_TRACKING = FIXTURES / "dwc-dp-examples" / "observation" / "bird-tracking" / "output_data"
+CONABIO_BEES = FIXTURES / "dwc-dp-examples" / "organism_interaction" / "conabio-bees" / "output_data"
 INVALID_MISSING_PROFILE = FIXTURES / "invalid_missing_profile"
 INVALID_BAD_VALUES = FIXTURES / "invalid_bad_values"
 
@@ -17,13 +18,7 @@ INVALID_BAD_VALUES = FIXTURES / "invalid_bad_values"
 class TestBirdTrackingFixture:
     def test_no_frictionless_errors(self):
         report = validate(BIRD_TRACKING, fetch=False)
-        # bird-tracking predates DwC-DP and uses old occurrenceStatus vocabulary
-        # (present/absent instead of detected/notDetected); exclude those known issues
-        errors = [
-            i for i in report.issues
-            if i.severity == Severity.ERROR
-            and i.field_name != "occurrenceStatus"
-        ]
+        errors = [i for i in report.issues if i.severity == Severity.ERROR]
         assert not errors, (
             "Unexpected errors in bird-tracking fixture:\n"
             + "\n".join(i.message for i in errors)
@@ -62,10 +57,10 @@ class TestInvalidBadValues:
         errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
         assert any("basisOfRecord" in e for e in errors)
 
-    def test_bad_occurrence_status_error(self):
+    def test_nonrecommended_occurrence_status_info(self):
         report = validate(INVALID_BAD_VALUES, fetch=False)
-        errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
-        assert any("occurrenceStatus" in e for e in errors)
+        infos = [i.message for i in report.issues if i.severity == Severity.INFO]
+        assert any("occurrenceStatus" in m for m in infos)
 
     def test_lat_out_of_range_error(self):
         report = validate(INVALID_BAD_VALUES, fetch=False)
@@ -119,9 +114,7 @@ class TestGzipArchive:
             archive = Path(tmp) / "package.tar.gz"
             self._make_archive(BIRD_TRACKING, archive)
             report = validate(archive, fetch=False)
-            # exclude known occurrenceStatus vocabulary mismatch in bird-tracking fixture
-            errors = [i for i in report.issues
-                      if i.severity == Severity.ERROR and i.field_name != "occurrenceStatus"]
+            errors = [i for i in report.issues if i.severity == Severity.ERROR]
             assert not errors
 
     def test_invalid_package_in_gz_archive(self):
@@ -146,3 +139,21 @@ class TestReportFormatting:
         assert "valid" in parsed
         assert "issues" in parsed
         assert parsed["valid"] is False
+
+    def test_as_text_summary_groups_row_issues(self):
+        report = validate(CONABIO_BEES, fetch=False)
+        summary = report.as_text_summary()
+        lines = summary.splitlines()
+        # geodeticDatum warning appears on many rows but should collapse to one line
+        geod_lines = [l for l in lines if "geodeticDatum" in l]
+        assert len(geod_lines) == 1
+        assert "rows" in geod_lines[0]
+
+    def test_as_text_summary_non_row_issues_shown_as_is(self):
+        report = validate(INVALID_MISSING_PROFILE, fetch=False)
+        summary = report.as_text_summary()
+        assert "profile" in summary.lower()
+
+    def test_as_text_summary_contains_status(self):
+        report = validate(INVALID_MISSING_PROFILE, fetch=False)
+        assert "INVALID" in report.as_text_summary()

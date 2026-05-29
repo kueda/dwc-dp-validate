@@ -1,4 +1,7 @@
-# dwcdp-validate
+# !! Warning !!
+I'm not affiliated with TDWG and this was largely built by Claude based on existing documentation, so take this with a grain of salt. I don't really know if this validates DwC-DP files correctly.
+
+# dwc-dp-validate
 
 A CLI validator for [DarwinCore Data Packages](https://github.com/gbif/dwc-dp) (dwc-dp),
 an emerging biodiversity data exchange standard built on top of
@@ -16,7 +19,7 @@ uv tool install .
 ## Usage
 
 ```
-dwcdp-validate PATH [OPTIONS]
+dwc-dp-validate PATH [OPTIONS]
 
 Arguments:
   PATH    Path to a datapackage.json file, a directory containing one,
@@ -35,16 +38,16 @@ Options:
 
 ```bash
 # Validate a directory
-uv run dwcdp-validate path/to/my-package/
+dwc-dp-validate path/to/my-package/
 
 # JSON output, show all issues including info
-uv run dwcdp-validate path/to/my-package/ --format json --level info
+dwc-dp-validate path/to/my-package/ --format json --level info
 
 # Offline mode (no network requests to fetch official schemas)
-uv run dwcdp-validate path/to/my-package/ --no-fetch
+dwc-dp-validate path/to/my-package/ --no-fetch
 
 # Validate a gzip archive (the only archive format the DwC-DP spec permits)
-uv run dwcdp-validate my-package.tar.gz
+dwc-dp-validate my-package.tar.gz
 ```
 
 ## Validation layers
@@ -110,5 +113,5 @@ uv run pytest tests/ -v
 uv run pylint src/ tests/
 
 # Run against the bundled example fixtures
-uv run dwcdp-validate tests/fixtures/dwc-dp-examples/observation/bird-tracking/output_data/ --no-fetch
+uv run dwc-dp-validate tests/fixtures/dwc-dp-examples/observation/bird-tracking/output_data/ --no-fetch
 ```

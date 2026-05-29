@@ -32,17 +32,26 @@ from .validator import validate
     default=False,
     help="Skip remote schema fetching (offline mode).",
 )
-def cli(path: Path, output_format: str, level: str, no_fetch: bool) -> None:
+@click.option(
+    "--detail",
+    is_flag=True,
+    default=False,
+    help="Show every row-level issue instead of a grouped summary.",
+)
+def cli(path: Path, output_format: str, level: str, no_fetch: bool, detail: bool) -> None:
     """Validate a DarwinCore Data Package.
 
     PATH may be a datapackage.json file, a directory containing one,
     or a gzip archive (.gz) as specified by the DwC-DP standard.
     """
     report = validate(path, fetch=not no_fetch)
+    color = sys.stdout.isatty()
 
     if output_format == "json":
         click.echo(report.as_json(min_level=level))
+    elif detail:
+        click.echo(report.as_text(min_level=level, color=color))
     else:
-        click.echo(report.as_text(min_level=level))
+        click.echo(report.as_text_summary(min_level=level, color=color))
 
     sys.exit(0 if report.valid else 1)

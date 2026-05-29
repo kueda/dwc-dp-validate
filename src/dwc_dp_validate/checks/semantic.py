@@ -175,8 +175,9 @@ def _check_row(
 
     status = row.get("occurrenceStatus", "").strip()
     if status and status not in OCCURRENCE_STATUS_VALUES:
-        add(Severity.ERROR, "occurrenceStatus",
-            f"occurrenceStatus {status!r} must be 'detected' or 'notDetected'.")
+        add(Severity.INFO, "occurrenceStatus",
+            f"occurrenceStatus {status!r} is outside the recommended vocabulary"
+            f" ('detected', 'notDetected').")
 
     lat_str = row.get("decimalLatitude", "").strip()
     lon_str = row.get("decimalLongitude", "").strip()

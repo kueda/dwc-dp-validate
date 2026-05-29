@@ -78,9 +78,11 @@ class TestOccurrenceStatus:
         report = _run_on_rows([{"occurrenceStatus": "notDetected"}])
         assert not _errors(report)
 
-    def test_invalid_status_is_error(self):
+    def test_nonrecommended_status_is_info(self):
         report = _run_on_rows([{"occurrenceStatus": "present"}])
-        assert any("occurrenceStatus" in e for e in _errors(report))
+        infos = [i.message for i in report.issues if i.severity == Severity.INFO]
+        assert any("occurrenceStatus" in m for m in infos)
+        assert not any("occurrenceStatus" in e for e in _errors(report))
 
     def test_empty_status_no_error(self):
         report = _run_on_rows([{"occurrenceStatus": ""}])
