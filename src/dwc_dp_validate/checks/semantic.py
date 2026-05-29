@@ -125,7 +125,7 @@ def _open_csv(path: Path):
 
 def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
     """Run semantic checks on all resource CSV/TSV files."""
-    for resource, name, csv_path in iter_csv_resources(dp, base_dir):
+    for resource, name, csv_path, path_str in iter_csv_resources(dp, base_dir):
         required_fields: frozenset[str] = frozenset()
         if fetch:
             req = schema_check.get_required_field_names(name)
@@ -138,19 +138,21 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
                 reader = csv.DictReader(fh, delimiter=delimiter)
                 checkable_required = required_fields & frozenset(reader.fieldnames or [])
                 for row_num, row in enumerate(reader, start=2):
-                    _check_row(row, row_num, name, report, checkable_required)
+                    _check_row(row, row_num, name, path_str, report, checkable_required)
         except Exception as exc:  # pylint: disable=broad-exception-caught  # csv.Error, OSError, or encoding errors all surfaced as an issue
             report.add(Issue(
                 severity=Severity.ERROR,
                 resource=name,
+                path=path_str,
                 message=f"Could not read file: {exc}",
             ))
 
 
-def _check_row(
+def _check_row(  # pylint: disable=too-many-arguments,too-many-positional-arguments  # row context (resource, path, row_num) + report + required_fields are all distinct
     row: dict,
     row_num: int,
     resource: str,
+    path: str,
     report: Report,
     required_fields: frozenset[str] = frozenset(),
 ) -> None:
@@ -161,6 +163,7 @@ def _check_row(
             resource=resource,
             row=row_num,
             field_name=field,
+            path=path,
         ))
 
     for field_name in sorted(required_fields):

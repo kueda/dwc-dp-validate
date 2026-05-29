@@ -1,4 +1,5 @@
 """Layer 2c: Referential integrity checks across tables."""
+# pylint: disable=duplicate-code  # exception handler structure mirrors semantic.py but messages differ
 from __future__ import annotations
 
 import csv
@@ -30,7 +31,7 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
     resources_by_name = {r.get("name", ""): r for r in dp.get("resources", [])}
     key_cache: dict[tuple[str, str], set[str]] = {}
 
-    for resource, name, csv_path in iter_csv_resources(dp, base_dir):
+    for resource, name, csv_path, path_str in iter_csv_resources(dp, base_dir):
         fk_defs = schema_check.get_foreign_keys(name)
         if not fk_defs:
             continue
@@ -76,6 +77,7 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
                                 resource=name,
                                 row=row_num,
                                 field_name=local_field,
+                                path=path_str,
                                 message=(
                                     f"{local_field} {val!r} in '{name}' does not "
                                     f"reference a row in '{ref_resource_name}'."
@@ -85,5 +87,6 @@ def check(dp: dict, base_dir: Path, report: Report, fetch: bool = True) -> None:
                 report.add(Issue(
                     severity=Severity.ERROR,
                     resource=name,
+                    path=path_str,
                     message=f"Could not read '{name}' for integrity check: {exc}",
                 ))

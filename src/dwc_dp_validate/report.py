@@ -30,6 +30,7 @@ class Issue:
     resource: Optional[str] = None
     row: Optional[int] = None
     field_name: Optional[str] = None
+    path: Optional[str] = None
 
 
 @dataclass
@@ -91,6 +92,17 @@ class Report:
                 parts.append(part)
         return ", ".join(parts)
 
+    @staticmethod
+    def _issue_loc(issue: "Issue", detail: bool = False) -> str:
+        """Return the bracketed location string for an issue line."""
+        identifier = issue.path or issue.resource
+        if not identifier:
+            return ""
+        loc = f" [{identifier}"
+        if detail and issue.row is not None:
+            loc += f" row {issue.row}"
+        return loc + "]"
+
     def as_text(self, min_level: str = "warning", color: bool = False) -> str:
         """Format issues as a human-readable string."""
         shown = self.filtered(min_level)
@@ -99,56 +111,50 @@ class Report:
             return header
         lines = [header]
         for issue in shown:
-            loc = ""
-            if issue.resource:
-                loc = f" [{issue.resource}"
-                if issue.row is not None:
-                    loc += f" row {issue.row}"
-                if issue.field_name:
-                    loc += f" field '{issue.field_name}'"
-                loc += "]"
+            loc = self._issue_loc(issue, detail=True)
             lines.append(f"{self._sev_label(issue.severity, color)}{loc}: {issue.message}")
         return "\n".join(lines)
 
     def as_text_summary(self, min_level: str = "warning", color: bool = False) -> str:
-        """Format issues as human-readable text, collapsing repeated row-level issues."""
+        """Format issues as human-readable text, grouped by file."""
         shown = self.filtered(min_level)
         header = self._header(shown, min_level, color)
         if not shown:
             return header
 
-        solo: list[Issue] = []
-        groups: dict[tuple, list[Issue]] = defaultdict(list)
+        by_path: dict[Optional[str], list[Issue]] = defaultdict(list)
         for issue in shown:
-            if issue.row is not None:
-                key = (issue.severity, issue.resource, issue.field_name, issue.message)
-                groups[key].append(issue)
-            else:
-                solo.append(issue)
+            by_path[issue.path].append(issue)
 
-        lines = [header, ""]
+        lines = [header]
 
-        for issue in solo:
-            loc = ""
-            if issue.resource:
-                loc = f" [{issue.resource}"
-                if issue.field_name:
-                    loc += f" field '{issue.field_name}'"
-                loc += "]"
-            lines.append(f"{self._sev_label(issue.severity, color)}{loc}: {issue.message}")
+        for path in sorted(by_path, key=lambda p: ("" if p is None else p)):
+            issues = by_path[path]
+            lines.append("")
+            if path is not None:
+                lines.append(path)
 
-        for (severity, resource, field_name, message), group in groups.items():
-            count = len(group)
-            loc = ""
-            if resource:
-                loc = f" [{resource}"
-                if field_name:
-                    loc += f" field '{field_name}'"
-                loc += "]"
-            noun = "row" if count == 1 else "rows"
-            lines.append(
-                f"{self._sev_label(severity, color)}{loc} ({count} {noun}): {message}"
-            )
+            groups: dict[tuple, list[Issue]] = defaultdict(list)
+            solo: list[Issue] = []
+            for issue in issues:
+                if issue.row is None:
+                    solo.append(issue)
+                else:
+                    key = (issue.severity, issue.field_name, issue.message)
+                    groups[key].append(issue)
+
+            indent = "  " if path is not None else ""
+            for issue in solo:
+                lines.append(
+                    f"{indent}{self._sev_label(issue.severity, color)}: {issue.message}"
+                )
+            for (severity, _field_name, message), group in groups.items():
+                count = len(group)
+                noun = "row" if count == 1 else "rows"
+                lines.append(
+                    f"{indent}{self._sev_label(severity, color)}"
+                    f" ({count} {noun}): {message}"
+                )
 
         return "\n".join(lines)
 
@@ -162,6 +168,7 @@ class Report:
                     {
                         "severity": i.severity.value,
                         "message": i.message,
+                        "path": i.path,
                         "resource": i.resource,
                         "row": i.row,
                         "field": i.field_name,

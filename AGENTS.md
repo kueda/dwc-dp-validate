@@ -38,9 +38,22 @@ tests/
 ```bash
 git submodule update --init   # populate tests/fixtures/dwc-dp-examples if not already present
 uv sync                       # install deps (creates .venv automatically)
-uv run pytest tests/ -v       # run all tests
-uv run dwcdp-validate tests/fixtures/dwc-dp-examples/observation/bird-tracking/output_data/ --no-fetch
+uv run pytest tests/ -v             # run all tests
+uv run pylint src/ tests/           # lint — must stay at 10.00/10
+uv run dwc-dp-validate tests/fixtures/dwc-dp-examples/observation/bird-tracking/output_data/ --no-fetch
 ```
+
+Run **both** pytest and pylint after every change. Pylint must remain at 10.00/10.
+
+Every `# pylint: disable=<rule>` comment must include a brief justification
+explaining *why* the suppression is appropriate, e.g.:
+
+```python
+def _check_row(  # pylint: disable=too-many-arguments  # row context + report + required_fields are all distinct
+```
+
+Do not suppress a warning just to make the score pass — fix the underlying
+issue unless suppression is genuinely the right call, and say why.
 
 `tests/fixtures/dwc-dp-examples` is a git submodule pointing at
 `gbif/dwc-dp-examples`. When cloning this repo, use

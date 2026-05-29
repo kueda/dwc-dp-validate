@@ -6,11 +6,13 @@ import tempfile
 from pathlib import Path
 
 from dwc_dp_validate.validator import validate
-from dwc_dp_validate.report import Severity
+from dwc_dp_validate.report import Issue, Report, Severity
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BIRD_TRACKING = FIXTURES / "dwc-dp-examples" / "observation" / "bird-tracking" / "output_data"
-CONABIO_BEES = FIXTURES / "dwc-dp-examples" / "organism_interaction" / "conabio-bees" / "output_data"
+CONABIO_BEES = (
+    FIXTURES / "dwc-dp-examples" / "organism_interaction" / "conabio-bees" / "output_data"
+)
 INVALID_MISSING_PROFILE = FIXTURES / "invalid_missing_profile"
 INVALID_BAD_VALUES = FIXTURES / "invalid_bad_values"
 
@@ -157,3 +159,35 @@ class TestReportFormatting:
     def test_as_text_summary_contains_status(self):
         report = validate(INVALID_MISSING_PROFILE, fetch=False)
         assert "INVALID" in report.as_text_summary()
+
+    def test_as_text_summary_groups_by_file(self):
+        report = validate(CONABIO_BEES, fetch=False)
+        summary = report.as_text_summary()
+        # event.tsv has geodeticDatum warnings; it should appear as a section header
+        assert "event.tsv" in summary
+        # the geodeticDatum warning should be indented under the file header
+        lines = summary.splitlines()
+        file_idx = next(i for i, l in enumerate(lines) if l == "event.tsv")
+        assert any("geodeticDatum" in lines[j] for j in range(file_idx + 1, len(lines)))
+
+    def test_as_text_summary_groups_by_file_multi_path(self):
+        r = Report()
+        r.add(Issue(Severity.WARNING, "msg a", resource="foo", row=2,
+                    field_name="f", path="foo.csv"))
+        r.add(Issue(Severity.WARNING, "msg a", resource="foo", row=3,
+                    field_name="f", path="foo.csv"))
+        r.add(Issue(Severity.ERROR, "msg b", resource="bar", row=2,
+                    field_name="g", path="bar.csv"))
+        summary = r.as_text_summary()
+        assert "foo.csv" in summary
+        assert "bar.csv" in summary
+        # foo.csv rows collapse to one line
+        foo_section = summary[summary.index("foo.csv"):]
+        assert "(2 rows)" in foo_section
+
+    def test_as_text_detail_includes_path(self):
+        report = validate(CONABIO_BEES, fetch=False)
+        detail = report.as_text()
+        row_lines = [l for l in detail.splitlines() if "geodeticDatum" in l]
+        assert row_lines
+        assert all("event.tsv" in l for l in row_lines)

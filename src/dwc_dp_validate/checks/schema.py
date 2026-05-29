@@ -76,6 +76,7 @@ def check(
 
     for resource in dp.get("resources", []):
         name = resource.get("name", "")
+        path_str = resource.get("path", "")
         schema = resource.get("schema", {})
         if isinstance(schema, str):
             continue
@@ -92,6 +93,7 @@ def check(
                 severity=Severity.WARNING,
                 resource=name,
                 field_name=field_name,
+                path=path_str or None,
                 message=(
                     f"Field '{field_name}' is not in the official DwC-DP schema "
                     f"for '{name}'."
@@ -102,7 +104,6 @@ def check(
             continue
 
         required = {f["name"] for f in fields if f.get("constraints", {}).get("required")}
-        path_str = resource.get("path", "")
         if not required or not path_str:
             continue
 
@@ -119,6 +120,7 @@ def check(
                     severity=Severity.ERROR,
                     resource=name,
                     field_name=field_name,
+                    path=path_str,
                     message=f"Required field '{field_name}' is missing from '{name}'.",
                 ))
         except Exception:  # pylint: disable=broad-exception-caught  # csv.Error, OSError, or encoding errors; column check skipped

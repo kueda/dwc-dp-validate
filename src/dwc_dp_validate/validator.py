@@ -58,8 +58,10 @@ def _frictionless_errors_to_issues(fr_report: frictionless.Report) -> list[Issue
 
     for rr in resource_reports:
         resource_name = None
+        resource_path = None
         try:
             resource_name = rr.resource.name
+            resource_path = rr.resource.path
         except AttributeError:
             pass
 
@@ -72,6 +74,7 @@ def _frictionless_errors_to_issues(fr_report: frictionless.Report) -> list[Issue
                 resource=resource_name,
                 row=row,
                 field_name=field,
+                path=resource_path,
             ))
     return issues
 
