@@ -51,30 +51,19 @@ def _resolve_package_dir(path: Path) -> tuple[Path, Optional[Path]]:
 
 def _frictionless_errors_to_issues(fr_report: frictionless.Report) -> list[Issue]:
     issues = []
-    try:
-        resource_reports = fr_report.resource_reports
-    except AttributeError:
-        return issues
 
-    for rr in resource_reports:
-        resource_name = None
-        resource_path = None
-        try:
-            resource_name = rr.resource.name
-            resource_path = rr.resource.path
-        except AttributeError:
-            pass
+    for error in fr_report.errors:
+        issues.append(Issue(severity=Severity.ERROR, message=error.message))
 
-        for error in rr.errors:
-            row = getattr(error, "row_number", None)
-            field = getattr(error, "field_name", None)
+    for task in fr_report.tasks:
+        for error in task.errors:
             issues.append(Issue(
                 severity=Severity.ERROR,
                 message=error.message,
-                resource=resource_name,
-                row=row,
-                field_name=field,
-                path=resource_path,
+                resource=task.name,
+                row=getattr(error, "row_number", None),
+                field_name=getattr(error, "field_name", None),
+                path=task.place,
             ))
     return issues
 

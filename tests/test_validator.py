@@ -15,6 +15,7 @@ CONABIO_BEES = (
 )
 INVALID_MISSING_PROFILE = FIXTURES / "invalid_missing_profile"
 INVALID_BAD_VALUES = FIXTURES / "invalid_bad_values"
+OVERLAP_VIOLATIONS = FIXTURES / "overlap_violations"
 
 
 class TestBirdTrackingFixture:
@@ -191,3 +192,34 @@ class TestReportFormatting:
         row_lines = [l for l in detail.splitlines() if "geodeticDatum" in l]
         assert row_lines
         assert all("event.tsv" in l for l in row_lines)
+
+
+class TestOverlapViolations:
+    # This fixture exposes overlapping checks between frictionless (Layer 1)
+    # and our own semantic checks (Layer 3). The same violation can produce
+    # two errors: one from frictionless and one from us.
+
+    def test_type_error_double_reported(self):
+        # "forty-eight" in a number-typed decimalLatitude field fires both a
+        # frictionless type-error and our own "not a number" semantic check.
+        report = validate(OVERLAP_VIOLATIONS, fetch=False)
+        errors = [i for i in report.issues if i.severity == Severity.ERROR
+                  and i.row == 2 and (i.path or "").endswith("occurrence.csv")]
+        messages = [i.message for i in errors]
+        assert any("type" in m.lower() or "number/default" in m for m in messages)
+        assert any("not a number" in m for m in messages)
+
+    def test_required_constraint_reported_by_frictionless(self):
+        # Empty occurrenceID (required+unique in schema) fires a frictionless
+        # constraint-error; our required-field check only fires when fetch=True.
+        report = validate(OVERLAP_VIOLATIONS, fetch=False)
+        errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
+        assert any("constraint" in m and "required" in m for m in errors)
+
+    def test_fk_violation_reported_by_frictionless(self):
+        # "missing-event" in eventID has no match in event.csv; frictionless
+        # catches this from the foreignKeys declared in the datapackage schema.
+        # Our integrity check would also catch it, but only with fetch=True.
+        report = validate(OVERLAP_VIOLATIONS, fetch=False)
+        errors = [i.message for i in report.issues if i.severity == Severity.ERROR]
+        assert any("foreign" in m.lower() for m in errors)

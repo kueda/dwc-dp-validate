@@ -1,0 +1,54 @@
+{
+  "profile": "tabular-data-package",
+  "name": "overlap-violations",
+  "id": "test-overlap",
+  "created": "2026-01-01T00:00:00Z",
+  "version": "1.0",
+  "resources": [
+    {
+      "name": "event",
+      "path": "event.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {
+            "name": "eventID",
+            "type": "string",
+            "constraints": {"required": true, "unique": true}
+          }
+        ],
+        "primaryKey": ["eventID"]
+      }
+    },
+    {
+      "name": "occurrence",
+      "path": "occurrence.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {
+            "name": "occurrenceID",
+            "type": "string",
+            "constraints": {"required": true, "unique": true}
+          },
+          {"name": "eventID", "type": "string"},
+          {"name": "decimalLatitude", "type": "number"},
+          {"name": "decimalLongitude", "type": "number"}
+        ],
+        "primaryKey": ["occurrenceID"],
+        "foreignKeys": [
+          {
+            "fields": "eventID",
+            "reference": {"resource": "event", "fields": "eventID"}
+          }
+        ]
+      }
+    }
+  ]
+}
